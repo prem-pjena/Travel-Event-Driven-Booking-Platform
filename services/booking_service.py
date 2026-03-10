@@ -1,30 +1,30 @@
-# services/booking_service.py
-
-import uuid
-from models.booking import Booking
-from models.flight import NoSeatsAvailableError
+from storage.booking_storage import load_bookings, save_bookings
 
 
-class BookingService:
-    def __init__(self, flights: dict, storage):
-        self.flights = flights  # dict of flight_id -> Flight object
-        self.storage = storage
+def create_booking(flight_id: str, user_id: int):
+    bookings = load_bookings()
 
-    def create_booking(self, passenger_name: str, flight_id: str):
-        if flight_id not in self.flights:
-            raise ValueError("Flight does not exist")
+    booking_id = len(bookings) + 1
 
-        flight = self.flights[flight_id]
+    booking = {
+        "booking_id": booking_id,
+        "flight_id": flight_id,
+        "user_id": user_id,
+    }
 
-        # Seat reduction (may raise NoSeatsAvailableError)
-        flight.book_seat()
+    bookings.append(booking)
+    save_bookings(bookings)
 
-        booking = Booking(
-            booking_id=str(uuid.uuid4()),
-            passenger_name=passenger_name,
-            flight_id=flight_id,
-        )
+    return booking
 
-        self.storage.save_booking(booking)
 
-        return booking
+def cancel_booking(booking_id: int):
+    bookings = load_bookings()
+
+    for booking in bookings:
+        if booking["booking_id"] == booking_id:
+            bookings.remove(booking)
+            save_bookings(bookings)
+            return {"message": "Booking cancelled"}
+
+    return {"error": "Booking not found"}
