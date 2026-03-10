@@ -2,186 +2,272 @@
 
 ## Overview
 
-This project is a backend-focused implementation of a flight booking system designed using clean layered architecture principles.  
+This project is a backend-focused implementation of a flight booking system built using FastAPI and clean layered architecture principles.
 
-The goal of this project is not just to “make booking work”, but to demonstrate:
+The objective of the project is not only to implement flight booking functionality, but to demonstrate production-oriented backend engineering practices including:
 
-- Proper domain modeling using OOP
-- Separation of concerns
-- Encapsulation of business rules
-- Isolated persistence layer
-- Production-level architectural thinking
+* Proper domain modeling
+* Clear separation of concerns
+* Encapsulation of business rules
+* Layered backend architecture
+* API design using REST principles
+* Validation using Pydantic schemas
+* Persistence isolation
+* Production risk analysis
 
-This project serves as the foundational core for scaling into a distributed, event-driven booking platform.
+The project acts as the **backend core** for a scalable travel booking platform that can evolve into a distributed event-driven system.
 
 ---
 
 ## Architecture
 
-The system follows a layered backend architecture:
+The backend follows a layered service architecture designed to separate responsibilities and support scalability.
 
-
-Interface Layer (CLI)
+Client
 ↓
-Service Layer (BookingService)
+FastAPI Router Layer
 ↓
-Domain Models (Flight, Booking)
+Schema Validation (Pydantic)
 ↓
-Persistence Layer (BookingStorage - JSON)
+Service Layer (Business Logic)
+↓
+Storage Layer (JSON Persistence)
 
+This layered approach ensures that:
 
-### Folder Structure
+* HTTP handling is isolated from business logic
+* Business logic is isolated from persistence
+* Storage mechanisms can be replaced without impacting domain logic
 
+---
 
+## Folder Structure
+
+```
 .
 ├── main.py
-├── models/
-│ ├── flight.py
-│ └── booking.py
+├── booking.json
+├── routers/
+│   ├── flights.py
+│   └── bookings.py
+├── schemas/
+│   ├── flight_schema.py
+│   └── booking_schema.py
 ├── services/
-│ └── booking_service.py
-└── storage/
-└── booking_storage.py
+│   └── booking_service.py
+├── storage/
+│   └── booking_storage.py
+├── models/
+│   ├── flight.py
+│   └── booking.py
+└── README.md
+```
 
+### Folder Responsibilities
 
----
+**routers/**
+Defines API endpoints and request routing.
 
-## Core Components
+**schemas/**
+Contains Pydantic models for request validation and response serialization.
 
-### 1. Flight (Domain Model)
+**services/**
+Implements business logic such as creating and canceling bookings.
 
-Represents a flight entity.
+**storage/**
+Handles persistence logic using JSON file storage.
 
-Responsibilities:
-- Stores flight_id
-- Manages seat availability
-- Protects seat invariants
-- Raises domain-specific exception when no seats available
-
-Encapsulation ensures seat count cannot be modified arbitrarily.
-
-Example invariant:
-
-seats_available >= 0
-
-
----
-
-### 2. Booking (Domain Model)
-
-Represents a booking record.
-
-Stores:
-- booking_id
-- passenger_name
-- flight_id
-- timestamp
-
-Implements:
-- `to_dict()` for JSON serialization
-- `from_dict()` for object reconstruction
-
-This preserves domain behavior while enabling persistence.
+**models/**
+Represents domain entities such as Flight and Booking.
 
 ---
 
-### 3. BookingService (Service Layer)
+## Implemented API Endpoints
 
-Coordinates booking workflow.
+### Search Flights
 
-Responsibilities:
-- Validate flight existence
-- Trigger seat booking
-- Create booking object
-- Persist booking via storage layer
+GET /search-flights
 
-Service layer does not:
-- Handle file system directly
-- Modify seat state manually
-- Print output
+Query Parameters:
 
-It orchestrates domain interactions.
+* source
+* destination
+
+Example Request:
+
+```
+GET /search-flights?source=DEL&destination=BLR
+```
+
+Returns matching flights between the specified cities.
 
 ---
 
-### 4. BookingStorage (Persistence Layer)
+### Book Flight
 
-Handles JSON-based storage.
+POST /book-flight
 
-Responsibilities:
-- Load bookings from file
-- Save new bookings
-- Convert dictionary ↔ object
-- Handle missing or corrupted files gracefully
+Request Body:
 
-Persistence logic is fully isolated, allowing easy migration to a database.
+```
+{
+ "flight_id": "AI203",
+ "user_id": 1
+}
+```
+
+Response Example:
+
+```
+{
+ "booking_id": 1,
+ "flight_id": "AI203",
+ "user_id": 1
+}
+```
+
+Creates a new booking and persists it.
+
+---
+
+### Cancel Booking
+
+DELETE /cancel-booking/{booking_id}
+
+Example:
+
+```
+DELETE /cancel-booking/1
+```
+
+Response:
+
+```
+{
+ "message": "Booking cancelled"
+}
+```
+
+Removes an existing booking.
+
+---
+
+## Domain Models
+
+### Flight
+
+Represents a flight entity with properties such as:
+
+* flight_id
+* airline
+* source
+* destination
+* departure_time
+* arrival_time
+
+Flights are currently stored in an in-memory structure for demonstration purposes.
+
+---
+
+### Booking
+
+Represents a booking record containing:
+
+* booking_id
+* flight_id
+* user_id
+
+Bookings are serialized to JSON for persistence.
 
 ---
 
 ## Booking Flow
 
-1. User submits booking request.
-2. BookingService validates flight.
-3. Flight.book_seat() reduces seat safely.
-4. Booking object is created.
-5. BookingStorage persists booking.
-6. Confirmation returned.
+1. Client sends booking request to API.
+2. Router receives request and validates input using Pydantic schema.
+3. Service layer processes the booking request.
+4. Storage layer loads existing bookings from JSON.
+5. New booking object is created.
+6. Booking is appended and saved to storage.
+7. Confirmation response is returned to the client.
 
 ---
 
 ## Key Backend Concepts Demonstrated
 
-- Layered architecture
-- Separation of concerns
-- Encapsulation
-- Custom domain exceptions
-- Object serialization/deserialization
-- Clean orchestration via service layer
-- Persistence isolation
-- Production risk analysis
+This project demonstrates several important backend engineering concepts:
+
+* Layered architecture
+* Separation of concerns
+* RESTful API design
+* Pydantic-based request validation
+* Domain modeling
+* JSON-based persistence
+* HTTP status handling
+* Production risk analysis
+* Modular project structure
 
 ---
 
 ## Production Considerations Identified
 
-The current JSON-based implementation has known limitations:
+The current JSON-based storage system has several known limitations:
 
-- Not concurrency safe
-- Entire file rewritten on each booking
-- Seat state stored in memory
-- No transaction safety
-- No idempotency protection
-- No distributed locking
-- No logging or monitoring
+* Not safe for concurrent writes
+* Entire file rewritten on each booking
+* No transaction safety
+* No indexing for fast queries
+* No idempotency protection
+* No distributed locking
+* No authentication
+* No monitoring or logging
 
-These were intentionally analyzed to bridge into system design thinking.
+These limitations were intentionally analyzed to demonstrate awareness of production challenges.
 
 ---
 
 ## Scalability Path
 
-To scale this system:
+To scale this system to production level:
 
-1. Replace JSON storage with PostgreSQL or DynamoDB.
-2. Move seat state to database for atomic updates.
+1. Replace JSON persistence with PostgreSQL or DynamoDB.
+2. Store seat availability in the database for atomic updates.
 3. Deploy multiple FastAPI instances behind a load balancer.
-4. Add transactional seat reservation logic.
-5. Introduce message queue for asynchronous notifications.
-6. Implement idempotency keys for duplicate request protection.
+4. Introduce Redis caching for frequently searched routes.
+5. Implement database transactions to prevent double booking.
+6. Introduce idempotency keys for retry-safe booking requests.
+7. Add message queues for event-driven workflows.
+8. Add observability through logging and monitoring tools.
 
-The current architecture supports these transitions without changing domain logic.
+The current architecture allows these improvements without changing the domain logic.
 
 ---
 
 ## How to Run
 
+Create a virtual environment and install dependencies:
 
-python main.py
+```
+pip install fastapi uvicorn
+```
 
+Start the API server:
 
-Follow CLI prompts to create a booking.
+```
+uvicorn main:app --reload
+```
 
-Bookings persist in `booking.json`.
+Server runs at:
+
+```
+http://127.0.0.1:8000
+```
+
+Interactive API documentation is available at:
+
+```
+http://127.0.0.1:8000/docs
+```
 
 ---
 
@@ -189,33 +275,36 @@ Bookings persist in `booking.json`.
 
 This project emphasizes:
 
-- Correctness over shortcuts
-- Clean architecture over script-style coding
-- Production thinking from early stages
-- Explicit error handling
-- Extensibility for distributed systems
+* Clean backend architecture
+* Explicit validation and error handling
+* Modular design for maintainability
+* Early-stage production thinking
+* Extensibility toward distributed systems
 
 ---
 
 ## Future Enhancements
 
-- Replace JSON with relational database
-- Add FastAPI interface
-- Add Redis caching
-- Add message queue for event-driven flow
-- Implement concurrency-safe booking logic
-- Add structured logging
-- Add test suite
+Planned improvements include:
+
+* Replace JSON storage with relational database
+* Add Redis caching layer
+* Implement seat reservation logic
+* Introduce authentication and authorization
+* Implement idempotent booking requests
+* Add structured logging
+* Add automated test suite
+* Introduce message queue for event-driven booking notifications
 
 ---
 
 ## Interview Explanation Summary
 
-"I designed a layered booking backend with domain-driven modeling. The Flight entity encapsulates seat management using custom exceptions to enforce invariants. The service layer orchestrates booking logic while remaining decoupled from persistence. JSON storage is isolated and replaceable, allowing migration to a transactional database without modifying domain logic. I also analyzed production risks including race conditions, state inconsistency, and scalability limitations."
+"I designed a layered FastAPI backend that separates routing, validation, business logic, and persistence. The system models flights and bookings using domain entities while Pydantic schemas enforce request validation. Business logic resides in a service layer, keeping routers thin and storage isolated. Bookings are persisted using a JSON storage layer designed to be easily replaceable with a database. I also analyzed production risks such as race conditions, concurrency issues, and scalability bottlenecks to demonstrate system design awareness."
 
 ---
 
 ## Author
 
-Prem Prakash Jena  
+Prem Prakash Jena
 Backend Engineering Practice Project
