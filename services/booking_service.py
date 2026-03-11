@@ -1,30 +1,28 @@
-from storage.booking_storage import load_bookings, save_bookings
+from sqlalchemy.orm import Session
+from models.booking import Booking
+from models.flight import Flight
 
 
-def create_booking(flight_id: str, user_id: int):
-    bookings = load_bookings()
+def create_booking(db: Session, user_id: int, flight_id: int, seat_number: str):
 
-    booking_id = len(bookings) + 1
+    flight = db.query(Flight).filter(Flight.id == flight_id).first()
 
-    booking = {
-        "booking_id": booking_id,
-        "flight_id": flight_id,
-        "user_id": user_id,
-    }
+    if not flight:
+        raise Exception("Flight not found")
 
-    bookings.append(booking)
-    save_bookings(bookings)
+    if flight.available_seats <= 0:
+        raise Exception("No seats available")
+
+    booking = Booking(
+        user_id=user_id,
+        flight_id=flight_id,
+        seat_number=seat_number
+    )
+
+    flight.available_seats -= 1
+
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
 
     return booking
-
-
-def cancel_booking(booking_id: int):
-    bookings = load_bookings()
-
-    for booking in bookings:
-        if booking["booking_id"] == booking_id:
-            bookings.remove(booking)
-            save_bookings(bookings)
-            return {"message": "Booking cancelled"}
-
-    return {"error": "Booking not found"}

@@ -11,9 +11,8 @@ class Flight(Base):
 
     flight_number = Column(String, nullable=False)
 
-    origin = Column(String, nullable=False)
-
-    destination = Column(String, nullable=False)
+    origin = Column(String, index=True, nullable=False)
+    destination = Column(String, index=True, nullable=False)
 
     departure_time = Column(DateTime, nullable=False)
 

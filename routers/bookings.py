@@ -1,21 +1,18 @@
-from fastapi import APIRouter, HTTPException
-from schemas.booking_schema import BookFlightRequest
-from services.booking_service import create_booking, cancel_booking
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models.booking import Booking
 
 router = APIRouter()
 
 
-@router.post("/book-flight", status_code=201)
-def book_flight(request: BookFlightRequest):
-    booking = create_booking(request.flight_id, request.user_id)
+@router.get("/booking/{booking_id}")
+def get_booking(booking_id: int, db: Session = Depends(get_db)):
+
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+
+    if not booking:
+        return {"error": "Booking not found"}
+
     return booking
-
-
-@router.delete("/cancel-booking/{booking_id}")
-def cancel_booking_api(booking_id: int):
-    result = cancel_booking(booking_id)
-
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-
-    return result
