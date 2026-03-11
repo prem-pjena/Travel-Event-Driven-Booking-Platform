@@ -1,20 +1,26 @@
-# models/flight.py
+from sqlalchemy import Column, Integer, String, DateTime
+from datetime import datetime
 
-class NoSeatsAvailableError(Exception):
-    """Raised when attempting to book a seat on a full flight."""
-    pass
+from database import Base
 
 
-class Flight:
-    def __init__(self, flight_id: str, seats_available: int):
-        self.flight_id = flight_id
-        self.seats_available = seats_available
+class Flight(Base):
+    __tablename__ = "flights"
 
-    def book_seat(self):
-        if self.seats_available <= 0:
-            raise NoSeatsAvailableError(
-                f"No seats available for flight {self.flight_id}"
-            )
+    id = Column(Integer, primary_key=True, index=True)
 
-        self.seats_available -= 1
-        return True
+    flight_number = Column(String, nullable=False)
+
+    origin = Column(String, nullable=False)
+
+    destination = Column(String, nullable=False)
+
+    departure_time = Column(DateTime, nullable=False)
+
+    arrival_time = Column(DateTime, nullable=False)
+
+    total_seats = Column(Integer, nullable=False)
+
+    available_seats = Column(Integer, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)

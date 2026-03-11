@@ -1,29 +1,24 @@
-# models/booking.py
-
+from sqlalchemy import Column, Integer, ForeignKey, String, DateTime, UniqueConstraint
 from datetime import datetime
 
+from database import Base
 
-class Booking:
-    def __init__(self, booking_id: str, passenger_name: str, flight_id: str):
-        self.booking_id = booking_id
-        self.passenger_name = passenger_name
-        self.flight_id = flight_id
-        self.timestamp = datetime.utcnow()
 
-    def to_dict(self):
-        return {
-            "booking_id": self.booking_id,
-            "passenger_name": self.passenger_name,
-            "flight_id": self.flight_id,
-            "timestamp": self.timestamp.isoformat(),
-        }
+class Booking(Base):
+    __tablename__ = "bookings"
 
-    @classmethod
-    def from_dict(cls, data: dict):
-        booking = cls(
-            booking_id=data["booking_id"],
-            passenger_name=data["passenger_name"],
-            flight_id=data["flight_id"],
-        )
-        booking.timestamp = datetime.fromisoformat(data["timestamp"])
-        return booking
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    flight_id = Column(Integer, ForeignKey("flights.id"), nullable=False)
+
+    seat_number = Column(String, nullable=False)
+
+    status = Column(String, default="CONFIRMED")
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("flight_id", "seat_number", name="unique_flight_seat"),
+    )
