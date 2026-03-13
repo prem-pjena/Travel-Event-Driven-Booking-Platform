@@ -52,15 +52,22 @@ This layered approach ensures that:
 .
 ├── main.py
 ├── database.py
+├── core/
+│   ├── config.py
+│   ├── dependencies.py
+│   └── security.py
 ├── routers/
+│   ├── auth.py
 │   ├── flights.py
 │   ├── bookings.py
 │   └── users.py
 ├── schemas/
 │   ├── flight_schema.py
 │   ├── booking_schema.py
-│   └── user_schema.py
+│   ├── user_schema.py
+│   └── token_schema.py
 ├── services/
+│   ├── auth_service.py
 │   └── booking_service.py
 ├── models/
 │   ├── flight.py
@@ -86,6 +93,9 @@ Implements business rules such as creating bookings, validating seat availabilit
 **models/**
 Defines SQLAlchemy ORM models that map Python classes to PostgreSQL tables.
 
+**core/**
+Contains authentication and shared backend utilities such as JWT token handling, security helpers, and dependency injection logic.
+
 **database.py**
 Centralized database configuration file that manages the SQLAlchemy engine, database sessions, and connection lifecycle.
 
@@ -96,7 +106,7 @@ Legacy JSON storage layer used in the initial version of the project. It demonst
 
 ## Database Schema
 
-The backend now uses **PostgreSQL as the primary persistence layer**.
+The backend uses **PostgreSQL as the primary persistence layer**.
 
 The relational schema consists of three core tables.
 
@@ -161,17 +171,64 @@ This protects the system from double-booking during concurrent requests.
 
 ## Implemented API Endpoints
 
+### Authentication
+
+#### Register User
+
+POST /auth/register
+
+Request body:
+
+```
+{
+  "name": "Prem",
+  "email": "prem@test.com",
+  "password": "password123"
+}
+```
+
+Creates a new user account and securely stores the hashed password using bcrypt.
+
+---
+
+#### Login User
+
+POST /auth/login
+
+Form data:
+
+```
+username = prem@test.com
+password = password123
+```
+
+Returns a **JWT access token** used for authenticated requests.
+
+Example response:
+
+```
+{
+  "access_token": "JWT_TOKEN",
+  "token_type": "bearer"
+}
+```
+
+---
+
 ### Get Booking
 
 GET /booking/{booking_id}
 
-Example:
+Protected endpoint requiring a valid JWT token.
+
+Example request:
 
 ```
 GET /booking/1
+Authorization: Bearer <JWT_TOKEN>
 ```
 
-Returns booking details if the booking exists.
+Returns booking details if the booking exists and belongs to the authenticated user.
 
 Example response:
 
@@ -184,43 +241,6 @@ Example response:
   "status": "CONFIRMED"
 }
 ```
-
----
-
-### Search Flights (Planned Endpoint)
-
-GET /flights/search
-
-Query parameters:
-
-* origin
-* destination
-
-Example:
-
-```
-GET /flights/search?origin=DEL&destination=MUM
-```
-
-Returns flights matching the specified route.
-
----
-
-### Create Booking (Planned Endpoint)
-
-POST /booking
-
-Request body:
-
-```
-{
- "user_id": 1,
- "flight_id": 1,
- "seat_number": "12A"
-}
-```
-
-This endpoint will create a booking while updating seat availability.
 
 ---
 
@@ -251,7 +271,8 @@ This project demonstrates several important backend engineering principles:
 * Database constraints for data integrity
 * Modular service-based backend design
 * Database session management
-* API to database integration
+* JWT authentication using OAuth2 bearer tokens
+* Dependency-based authorization in FastAPI
 
 ---
 
@@ -265,7 +286,7 @@ Potential challenges include:
 * Database connection limits under heavy traffic
 * Query latency for large datasets
 * Need for caching for read-heavy endpoints
-* Absence of authentication and authorization
+* Token theft and authentication security risks
 * Lack of structured logging and monitoring
 * Missing retry-safe booking logic
 * Absence of distributed locking
@@ -286,7 +307,7 @@ To scale this system toward production readiness:
 5. Add idempotency keys to protect against retry-based duplicate bookings.
 6. Introduce background event processing using message queues.
 7. Add observability through metrics, logs, and tracing.
-8. Implement authentication and authorization mechanisms.
+8. Implement authentication refresh tokens and session management.
 
 The current architecture is designed so these improvements can be introduced without rewriting the core domain logic.
 
@@ -297,7 +318,7 @@ The current architecture is designed so these improvements can be introduced wit
 Create a virtual environment and install dependencies:
 
 ```
-pip install fastapi uvicorn sqlalchemy psycopg2-binary
+pip install fastapi uvicorn sqlalchemy psycopg2-binary passlib[bcrypt] python-jose python-multipart email-validator
 ```
 
 Start the API server:
@@ -329,6 +350,7 @@ This project emphasizes:
 * Explicit validation and error handling
 * Modular service-layer design
 * Relational data integrity
+* Authentication and authorization mechanisms
 * Production-oriented engineering thinking
 * Extensibility toward distributed systems
 
@@ -341,19 +363,19 @@ Planned improvements include:
 * Implement full booking creation API
 * Implement seat reservation transactions
 * Introduce Redis caching layer
-* Implement authentication and authorization
+* Implement refresh token authentication
 * Add automated test suite
 * Add structured logging
 * Introduce distributed message queues
 * Implement event-driven notifications
-* Add database migrations
+* Add database migrations using Alembic
 * Deploy backend using containerized infrastructure
 
 ---
 
 ## Interview Explanation Summary
 
-"I designed a layered FastAPI backend that separates routing, validation, business logic, and persistence. The system models flights, users, and bookings using SQLAlchemy ORM mapped to a PostgreSQL relational database. Database constraints enforce seat uniqueness to prevent double-booking during concurrent requests. Business logic resides in a service layer, keeping routers thin and persistence isolated. I also analyzed production risks such as race conditions, database bottlenecks, and scaling challenges to demonstrate system design awareness."
+"I designed a layered FastAPI backend that separates routing, validation, business logic, and persistence. The system models flights, users, and bookings using SQLAlchemy ORM mapped to a PostgreSQL relational database. Authentication is implemented using JWT tokens with OAuth2 bearer authentication. Database constraints enforce seat uniqueness to prevent double-booking during concurrent requests. Business logic resides in a service layer, keeping routers thin and persistence isolated. I also analyzed production risks such as race conditions, database bottlenecks, and scaling challenges to demonstrate system design awareness."
 
 ---
 
