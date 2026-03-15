@@ -8,6 +8,7 @@ from models import flight
 from models import booking
 
 # Import routers
+from routers import users   # ← ADD THIS LINE
 from routers import auth
 from routers import flights
 from routers import bookings
@@ -25,6 +26,7 @@ app = FastAPI(
 
 
 # Register routers
+app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(flights.router)
 app.include_router(bookings.router)
