@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from database import Base
+from database.session import Base
 
 
 class User(Base):
@@ -11,8 +12,10 @@ class User(Base):
 
     name = Column(String, nullable=False)
 
-    email = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
 
     password_hash = Column(String, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    bookings = relationship("Booking", back_populates="user")

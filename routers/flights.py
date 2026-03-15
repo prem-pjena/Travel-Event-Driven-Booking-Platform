@@ -1,39 +1,30 @@
-from fastapi import APIRouter
-from typing import List
-from schemas.flight_schema import Flight
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from database.session import get_db
+from models.flight import Flight
 
-# temporary in-memory flight database
-flights_db = [
-    {
-        "flight_id": "AI203",
-        "airline": "Air India",
-        "source": "DEL",
-        "destination": "BLR",
-        "departure_time": "10:30",
-        "arrival_time": "13:10",
-    },
-    {
-        "flight_id": "6E405",
-        "airline": "Indigo",
-        "source": "DEL",
-        "destination": "BLR",
-        "departure_time": "12:00",
-        "arrival_time": "14:40",
-    },
-]
+router = APIRouter(
+    tags=["Flights"]
+)
 
 
-@router.get("/search-flights", response_model=List[Flight])
-def search_flights(source: str, destination: str):
-    results = []
+@router.post("/flights")
+def create_flight(
+    departure_city: str,
+    arrival_city: str,
+    available_seats: int,
+    db: Session = Depends(get_db)
+):
 
-    for flight in flights_db:
-        if (
-            flight["source"].lower() == source.lower()
-            and flight["destination"].lower() == destination.lower()
-        ):
-            results.append(flight)
+    flight = Flight(
+        departure_city=departure_city,
+        arrival_city=arrival_city,
+        available_seats=available_seats
+    )
 
-    return results
+    db.add(flight)
+    db.commit()
+    db.refresh(flight)
+
+    return flight

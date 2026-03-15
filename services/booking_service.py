@@ -1,11 +1,10 @@
 from sqlalchemy.orm import Session
-from models.booking import Booking
-from models.flight import Flight
+from repositories import booking_repository
 
 
 def create_booking(db: Session, user_id: int, flight_id: int, seat_number: str):
 
-    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    flight = booking_repository.get_flight_by_id(db, flight_id)
 
     if not flight:
         raise Exception("Flight not found")
@@ -13,16 +12,24 @@ def create_booking(db: Session, user_id: int, flight_id: int, seat_number: str):
     if flight.available_seats <= 0:
         raise Exception("No seats available")
 
-    booking = Booking(
+    booking = booking_repository.create_booking(
+        db,
         user_id=user_id,
         flight_id=flight_id,
         seat_number=seat_number
     )
 
-    flight.available_seats -= 1
+    booking_repository.update_flight_seats(db, flight)
 
-    db.add(booking)
     db.commit()
     db.refresh(booking)
+
+    return booking
+def get_booking_by_id(db, booking_id: int):
+
+    booking = booking_repository.get_booking_with_details(
+        db,
+        booking_id
+    )
 
     return booking

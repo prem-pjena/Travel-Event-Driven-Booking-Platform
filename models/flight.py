@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 
-from database import Base
+from database.session import Base
 
 
 class Flight(Base):
@@ -9,17 +9,11 @@ class Flight(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    flight_number = Column(String, nullable=False)
+    departure_city = Column(String, nullable=False)
 
-    origin = Column(String, index=True, nullable=False)
-    destination = Column(String, index=True, nullable=False)
-
-    departure_time = Column(DateTime, nullable=False)
-
-    arrival_time = Column(DateTime, nullable=False)
-
-    total_seats = Column(Integer, nullable=False)
+    arrival_city = Column(String, nullable=False)
 
     available_seats = Column(Integer, nullable=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # 🔗 Relationship with bookings
+    bookings = relationship("Booking", back_populates="flight")
