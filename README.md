@@ -15,6 +15,7 @@ The objective of the project is not only to implement flight booking functionali
 * Relational database design using PostgreSQL
 * Persistence abstraction using SQLAlchemy ORM
 * Data integrity through foreign keys and constraints
+* Authentication and authorization using JWT tokens
 * Production risk and scalability analysis
 
 The project acts as the **backend core of a scalable travel booking platform** that can evolve into a distributed event-driven system.
@@ -33,7 +34,9 @@ Schema Validation (Pydantic)
 ↓
 Service Layer (Business Logic)
 ↓
-ORM Layer (SQLAlchemy)
+Repository Layer (Persistence Abstraction)
+↓
+SQLAlchemy ORM
 ↓
 PostgreSQL Database
 
@@ -51,7 +54,8 @@ This layered approach ensures that:
 ```
 .
 ├── main.py
-├── database.py
+├── database/
+│   └── session.py
 ├── core/
 │   ├── config.py
 │   ├── dependencies.py
@@ -59,8 +63,7 @@ This layered approach ensures that:
 ├── routers/
 │   ├── auth.py
 │   ├── flights.py
-│   ├── bookings.py
-│   └── users.py
+│   └── bookings.py
 ├── schemas/
 │   ├── flight_schema.py
 │   ├── booking_schema.py
@@ -69,14 +72,13 @@ This layered approach ensures that:
 ├── services/
 │   ├── auth_service.py
 │   └── booking_service.py
+├── repositories/
+│   └── booking_repository.py
 ├── models/
 │   ├── flight.py
 │   ├── booking.py
 │   └── user.py
-├── storage/
-│   └── booking_storage.py
-├── booking.json
-└── README.md
+├── README.md
 ```
 
 ### Folder Responsibilities
@@ -88,19 +90,19 @@ Defines API endpoints and request routing logic. Routers remain thin and delegat
 Contains Pydantic models used for request validation and response serialization. Ensures that invalid data never reaches the business logic layer.
 
 **services/**
-Implements business rules such as creating bookings, validating seat availability, and orchestrating database operations.
+Implements business rules such as validating seat availability, enforcing authorization rules, and orchestrating database operations.
+
+**repositories/**
+Encapsulates database queries and persistence logic. This layer isolates SQLAlchemy operations from business logic.
 
 **models/**
 Defines SQLAlchemy ORM models that map Python classes to PostgreSQL tables.
 
 **core/**
-Contains authentication and shared backend utilities such as JWT token handling, security helpers, and dependency injection logic.
+Contains authentication utilities and shared backend logic such as JWT token handling, security helpers, and dependency injection.
 
-**database.py**
-Centralized database configuration file that manages the SQLAlchemy engine, database sessions, and connection lifecycle.
-
-**storage/**
-Legacy JSON storage layer used in the initial version of the project. It demonstrates how persistence layers can be swapped without affecting the business logic.
+**database/**
+Handles database configuration including the SQLAlchemy engine, session creation, and connection lifecycle.
 
 ---
 
@@ -133,16 +135,12 @@ Represents available flights in the system.
 Fields:
 
 * id (primary key)
-* flight_number
-* origin
-* destination
-* departure_time
-* arrival_time
-* total_seats
+* departure_city
+* arrival_city
 * available_seats
 * created_at
 
-Origin and destination columns are indexed to optimize flight search queries.
+Departure and arrival cities are indexed to optimize flight search queries.
 
 ---
 
@@ -215,6 +213,37 @@ Example response:
 
 ---
 
+### Search Flights
+
+GET /search-flights
+
+Example request:
+
+```
+/search-flights?source=DEL&destination=BLR
+```
+
+Returns matching flights between the specified cities.
+
+---
+
+### Create Booking
+
+POST /bookings
+
+Protected endpoint requiring a valid JWT token.
+
+Example request:
+
+```
+POST /bookings?flight_id=1&seat_number=A1
+Authorization: Bearer <JWT_TOKEN>
+```
+
+Creates a booking if seats are available.
+
+---
+
 ### Get Booking
 
 GET /booking/{booking_id}
@@ -228,17 +257,26 @@ GET /booking/1
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-Returns booking details if the booking exists and belongs to the authenticated user.
+Returns booking details along with related flight and user data using relational JOIN queries.
 
 Example response:
 
 ```
 {
   "id": 1,
-  "user_id": 1,
-  "flight_id": 1,
-  "seat_number": "12A",
-  "status": "CONFIRMED"
+  "seat_number": "A1",
+  "status": "CONFIRMED",
+  "user": {
+    "id": 1,
+    "name": "Test User",
+    "email": "testuser@mail.com"
+  },
+  "flight": {
+    "id": 1,
+    "departure_city": "DEL",
+    "arrival_city": "BLR",
+    "available_seats": 49
+  }
 }
 ```
 
@@ -248,12 +286,14 @@ Example response:
 
 1. Client sends booking request to the API.
 2. FastAPI router receives the request.
-3. Pydantic schema validates input data.
-4. Service layer checks seat availability.
-5. Booking object is created through SQLAlchemy ORM.
-6. Database transaction inserts the booking and updates seat availability.
-7. PostgreSQL enforces seat uniqueness constraints.
-8. Confirmation response is returned to the client.
+3. JWT authentication validates the user.
+4. Pydantic schema validates input data.
+5. Service layer checks seat availability.
+6. Repository layer performs database operations.
+7. SQLAlchemy ORM creates the booking object.
+8. PostgreSQL enforces seat uniqueness constraints.
+9. Seat count is updated and booking confirmed.
+10. API returns the booking confirmation response.
 
 ---
 
@@ -270,9 +310,11 @@ This project demonstrates several important backend engineering principles:
 * Foreign key relationships
 * Database constraints for data integrity
 * Modular service-based backend design
+* Repository pattern for persistence abstraction
 * Database session management
 * JWT authentication using OAuth2 bearer tokens
 * Dependency-based authorization in FastAPI
+* ORM relationship loading using JOIN queries
 
 ---
 
@@ -292,7 +334,7 @@ Potential challenges include:
 * Absence of distributed locking
 * Potential database bottlenecks under high write load
 
-Identifying these limitations early demonstrates awareness of **real-world backend engineering challenges**.
+Identifying these limitations demonstrates awareness of **real-world backend engineering challenges**.
 
 ---
 
@@ -309,7 +351,7 @@ To scale this system toward production readiness:
 7. Add observability through metrics, logs, and tracing.
 8. Implement authentication refresh tokens and session management.
 
-The current architecture is designed so these improvements can be introduced without rewriting the core domain logic.
+The current architecture is designed so these improvements can be introduced **without rewriting the core domain logic**.
 
 ---
 
@@ -375,7 +417,7 @@ Planned improvements include:
 
 ## Interview Explanation Summary
 
-"I designed a layered FastAPI backend that separates routing, validation, business logic, and persistence. The system models flights, users, and bookings using SQLAlchemy ORM mapped to a PostgreSQL relational database. Authentication is implemented using JWT tokens with OAuth2 bearer authentication. Database constraints enforce seat uniqueness to prevent double-booking during concurrent requests. Business logic resides in a service layer, keeping routers thin and persistence isolated. I also analyzed production risks such as race conditions, database bottlenecks, and scaling challenges to demonstrate system design awareness."
+"I designed a layered FastAPI backend that separates routing, validation, business logic, and persistence. The system models flights, users, and bookings using SQLAlchemy ORM mapped to a PostgreSQL relational database. Authentication is implemented using JWT tokens with OAuth2 bearer authentication. Database constraints enforce seat uniqueness to prevent double-booking during concurrent requests. Business logic resides in a service layer while database queries are isolated in a repository layer, keeping routers thin and persistence decoupled. I also analyzed production risks such as race conditions, database bottlenecks, and scaling challenges to demonstrate system design awareness."
 
 ---
 
